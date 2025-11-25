@@ -12,18 +12,49 @@ import (
 
 // Poller handles periodic polling of exchange rates
 type Poller struct {
-	apiClient *api.Client
-	repo      *storage.Repository
-	logger    *slog.Logger
+	apiClient           *api.Client
+	repo                *storage.Repository
+	logger              *slog.Logger
+	skipOffHours        bool
+	businessHoursStart  int // Hour in CST (0-23)
+	businessHoursEnd    int // Hour in CST (0-23)
+}
+
+// PollerOption configures the poller
+type PollerOption func(*Poller)
+
+// WithBusinessHours enables business hours checking
+func WithBusinessHours(start, end int) PollerOption {
+	return func(p *Poller) {
+		p.skipOffHours = true
+		p.businessHoursStart = start
+		p.businessHoursEnd = end
+	}
+}
+
+// WithoutBusinessHours disables business hours checking (poll 24/7)
+func WithoutBusinessHours() PollerOption {
+	return func(p *Poller) {
+		p.skipOffHours = false
+	}
 }
 
 // NewPoller creates a new poller instance
-func NewPoller(apiClient *api.Client, repo *storage.Repository, logger *slog.Logger) *Poller {
-	return &Poller{
-		apiClient: apiClient,
-		repo:      repo,
-		logger:    logger,
+func NewPoller(apiClient *api.Client, repo *storage.Repository, logger *slog.Logger, opts ...PollerOption) *Poller {
+	p := &Poller{
+		apiClient:          apiClient,
+		repo:               repo,
+		logger:             logger,
+		skipOffHours:       true,  // Default: enable business hours check
+		businessHoursStart: 8,      // Default: 08:00 CST
+		businessHoursEnd:   22,     // Default: 22:00 CST
 	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
 }
 
 // Start begins the polling loop with the specified interval
@@ -52,8 +83,32 @@ func (p *Poller) Start(ctx context.Context, interval time.Duration) error {
 	}
 }
 
+// isBusinessHours checks if the current time is within CMB business hours (CST)
+func (p *Poller) isBusinessHours() bool {
+	if !p.skipOffHours {
+		return true // Always poll if business hours check is disabled
+	}
+
+	// Get current time in CST (China Standard Time = UTC+8)
+	cstLocation := time.FixedZone("CST", 8*60*60)
+	now := time.Now().In(cstLocation)
+	hour := now.Hour()
+
+	return hour >= p.businessHoursStart && hour < p.businessHoursEnd
+}
+
 // poll performs a single polling operation
 func (p *Poller) poll(ctx context.Context) error {
+	// Check if we're within business hours
+	if !p.isBusinessHours() {
+		cstLocation := time.FixedZone("CST", 8*60*60)
+		now := time.Now().In(cstLocation)
+		p.logger.Debug("skipping poll outside business hours",
+			"current_hour_cst", now.Hour(),
+			"business_hours", fmt.Sprintf("%02d:00-%02d:00", p.businessHoursStart, p.businessHoursEnd))
+		return nil
+	}
+
 	startTime := time.Now()
 
 	// Fetch data from API

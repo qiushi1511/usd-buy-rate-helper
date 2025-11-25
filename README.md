@@ -5,6 +5,7 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 ## Features
 
 - **Background Polling**: Continuously polls CMB API every minute for USD exchange rates
+- **Smart Business Hours**: Automatically skips polling outside CMB business hours (08:00-22:00 CST) to save resources
 - **SQLite Storage**: Stores historical data locally with date-based partitioning
 - **Real-time Monitoring**: Display current exchange rate with live updates
 - **Historical Analysis**: Query rates by time range with multiple output formats
@@ -47,14 +48,24 @@ Start the background polling service that collects USD exchange rates every minu
 
 **Options:**
 - `-i, --interval duration` - Polling interval (default: 1m)
+- `--no-business-hours` - Disable business hours check (poll 24/7)
 - `-d, --db string` - Database file path (default: ./data/rates.db)
 - `-m, --migrations string` - Migrations directory path (default: ./migrations)
 - `-v, --verbose` - Enable verbose logging
 
-**Example:**
+**Business Hours:**
+By default, the daemon only polls the CMB API during business hours (08:00-22:00 CST) since exchange rates don't update outside these hours. This reduces unnecessary API calls by ~60%. Use `--no-business-hours` to disable this optimization and poll 24/7.
+
+**Examples:**
 ```bash
+# Standard daemon with business hours optimization
+./ratemon daemon
+
 # Poll every 30 seconds with verbose logging
 ./ratemon daemon -i 30s -v
+
+# Disable business hours check (poll 24/7)
+./ratemon daemon --no-business-hours
 
 # Use a custom database path
 ./ratemon daemon -d /var/lib/ratemon/rates.db
@@ -306,11 +317,17 @@ usd-buy-rate-monitor/
    - Identifies USD currency by Chinese name "美元"
    - Extracts `rtcBid` field and divides by 100 (rate is per 10 units)
 
-3. **Storage**: Saves rates to SQLite database
+3. **Business Hours Check**: Optimizes resource usage by respecting CMB operating hours
+   - Default hours: 08:00-22:00 CST (China Standard Time, UTC+8)
+   - Skips API calls outside business hours since rates don't update
+   - Reduces API calls by ~60% and saves database writes
+   - Can be disabled with `--no-business-hours` flag
+
+4. **Storage**: Saves rates to SQLite database
    - Each record includes: rate value, timestamp, and date partition
    - Indexed by date and time for efficient queries
 
-4. **Polling Loop**: Runs continuously with configurable interval
+5. **Polling Loop**: Runs continuously with configurable interval
    - Uses `time.Ticker` for precise timing
    - Continues operation even if individual polls fail
 

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.qiushi1511.ratemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor/ratemon</string>
+        <string>daemon</string>
+        <string>--db</string>
+        <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor/data/rates.db</string>
+        <string>--migrations</string>
+        <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor/migrations</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor/logs/ratemon.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/junhuif/Codes/Go/src/github.com/qiushi1511/usd-buy-rate-monitor/logs/ratemon.error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

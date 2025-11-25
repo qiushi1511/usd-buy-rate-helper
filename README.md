@@ -9,6 +9,7 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 - **Real-time Monitoring**: Display current exchange rate with live updates
 - **Historical Analysis**: Query rates by time range with multiple output formats
 - **Daily Statistics**: Peak rate analysis and average calculations
+- **ASCII Charts**: Visualize exchange rate trends directly in the terminal
 - **Graceful Shutdown**: Handles Ctrl+C and SIGTERM signals properly
 
 ## Prerequisites
@@ -106,6 +107,12 @@ View exchange rates for specific time ranges:
 
 # Output as JSON
 ./ratemon history --last 30m --format json
+
+# Show ASCII chart with data
+./ratemon history --last 2h --chart
+
+# Only chart, no table
+./ratemon history --last 2h --format chart
 ```
 
 **Example Output (table format):**
@@ -127,6 +134,24 @@ Time                  Rate (CNY)  Change
 2025-11-25 19:02:00      7.0748   ↑+0.0003
 2025-11-25 19:03:00      7.0751   ↑+0.0003
 ...
+```
+
+**Example Output (with chart):**
+```
+ 7.08 ┼╮
+ 7.08 ┤╰╮
+ 7.08 ┤ ╰╮
+ 7.08 ┤  ╰─╮
+ 7.08 ┤    ╰╮
+ 7.07 ┤     ╰─╮
+ 7.07 ┤       ╰╮
+ 7.07 ┤        ╰─╮
+ 7.07 ┤          ╰╮
+ 7.07 ┤           ╰──╮
+ 7.07 ┤              ╰───
+                    USD/CNY Rate (19:00 to 21:00)
+
+Statistics: Min=7.0712  Max=7.0789  Avg=7.0751  Range=0.0077  Samples=120
 ```
 
 ### Daily Peak Analysis
@@ -175,6 +200,9 @@ Calculate average exchange rates for each day:
 
 # Specific dates with comparison
 ./ratemon average 2025-11-25 2025-11-24 --compare
+
+# Show ASCII charts for trends
+./ratemon average --days 7 --compare --chart
 ```
 
 **Example Output:**
@@ -199,6 +227,38 @@ Comparison Across Dates
 Day-to-Day Changes:
   2025-11-24 → 2025-11-25:  ↓ -0.0034 (-0.04%) [down]
   2025-11-23 → 2025-11-24:  ↑ 0.0013 (0.02%) [up]
+
+Volatility Analysis:
+  Average Daily Range:  0.0071 CNY
+  Most Volatile Day:    2025-11-25 (0.0077 CNY range)
+  Least Volatile Day:   2025-11-24 (0.0067 CNY range)
+```
+
+**Example Output (with charts):**
+```
+ 7.08 ┼╮
+ 7.08 ┤╰─╮
+ 7.08 ┤  ╰╮
+ 7.08 ┤   ╰─╮
+ 7.08 ┤     ╰╮
+ 7.08 ┤      │
+ 7.08 ┤      ╰─╮
+ 7.08 ┤        ╰──╮
+ 7.08 ┤           ╰────
+                    Daily Average Rates (2025-11-23 to 2025-11-25)
+
+ 0.0077 ┼──╮
+ 0.0076 ┤  │
+ 0.0075 ┤  │
+ 0.0074 ┤  ╰╮
+ 0.0073 ┤   │
+ 0.0072 ┤   │
+ 0.0071 ┤   │
+ 0.0070 ┤   ╰╮
+ 0.0069 ┤    │
+ 0.0068 ┤    │
+ 0.0067 ┤    ╰───
+                    Daily Volatility (2025-11-23 to 2025-11-25)
 ```
 
 ### Stop the Daemon
@@ -219,12 +279,16 @@ usd-buy-rate-monitor/
 │   │   ├── monitor.go       # Monitor command
 │   │   ├── history.go       # History command
 │   │   ├── peak.go          # Peak analysis command
-│   │   └── average.go       # Average calculation command
+│   │   ├── average.go       # Average calculation command
+│   │   └── common.go        # Common utilities
 │   ├── storage/              # Data persistence layer
 │   │   ├── db.go            # Database connection
 │   │   └── repository.go    # Data access methods
 │   └── poller/               # Background polling service
 │       └── poller.go
+├── pkg/
+│   └── chart/                # Chart visualization
+│       └── chart.go         # ASCII chart rendering
 ├── migrations/               # SQL schema migrations
 │   └── 001_initial_schema.sql
 ├── data/                     # Database files (gitignored)
@@ -304,7 +368,6 @@ Run `./ratemon <command> --help` for detailed usage of each command.
 Potential features for future releases:
 - Data retention and aggregation (30-day policy)
 - Alert/notification system for threshold monitoring
-- ASCII charts for terminal visualization
 - Web dashboard for browser-based monitoring
 - Export to Excel format
 - Multi-currency support

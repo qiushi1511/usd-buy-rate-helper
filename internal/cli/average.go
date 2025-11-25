@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/qiushi1511/usd-buy-rate-monitor/internal/storage"
+	"github.com/qiushi1511/usd-buy-rate-monitor/pkg/chart"
 )
 
 // AverageCommand handles the average command functionality
@@ -24,7 +25,7 @@ func NewAverageCommand(repo *storage.Repository, logger *slog.Logger) *AverageCo
 }
 
 // DisplayAverage shows the daily average exchange rate
-func (a *AverageCommand) DisplayAverage(ctx context.Context, dates []string, compare bool) error {
+func (a *AverageCommand) DisplayAverage(ctx context.Context, dates []string, compare bool, showChart bool) error {
 	if len(dates) == 0 {
 		return fmt.Errorf("no dates specified")
 	}
@@ -64,11 +65,31 @@ func (a *AverageCommand) DisplayAverage(ctx context.Context, dates []string, com
 		a.displayComparison(allStats)
 	}
 
+	// Display charts if requested and we have data
+	if showChart && len(allStats) > 0 {
+		a.displayCharts(allStats)
+	}
+
 	return nil
 }
 
+func (a *AverageCommand) displayCharts(stats []*storage.DailyStats) {
+	width, height := chart.GetTerminalDimensions()
+
+	// Average rate trend chart
+	fmt.Printf("\n")
+	fmt.Println(chart.RenderDailyAverageChart(stats, width, height))
+	fmt.Printf("\n")
+
+	// Volatility chart
+	if len(stats) > 1 {
+		fmt.Println(chart.RenderVolatilityChart(stats, width, height))
+		fmt.Printf("\n")
+	}
+}
+
 // DisplayAverageRange shows average rates for a range of recent days
-func (a *AverageCommand) DisplayAverageRange(ctx context.Context, days int, compare bool) error {
+func (a *AverageCommand) DisplayAverageRange(ctx context.Context, days int, compare bool, showChart bool) error {
 	dates := getRecentDates(days)
 
 	var allStats []*storage.DailyStats
@@ -112,6 +133,11 @@ func (a *AverageCommand) DisplayAverageRange(ctx context.Context, days int, comp
 	// Display comparison if requested and we have data
 	if compare && len(allStats) > 0 {
 		a.displayComparison(allStats)
+	}
+
+	// Display charts if requested and we have data
+	if showChart && len(allStats) > 0 {
+		a.displayCharts(allStats)
 	}
 
 	return nil

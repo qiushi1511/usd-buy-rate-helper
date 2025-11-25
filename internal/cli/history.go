@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/qiushi1511/usd-buy-rate-monitor/internal/storage"
+	"github.com/qiushi1511/usd-buy-rate-monitor/pkg/chart"
 )
 
 // HistoryCommand handles the history command functionality
@@ -25,7 +26,7 @@ func NewHistoryCommand(repo *storage.Repository, logger *slog.Logger) *HistoryCo
 }
 
 // DisplayHistory shows exchange rates for a specific time range
-func (h *HistoryCommand) DisplayHistory(ctx context.Context, start, end time.Time, format string) error {
+func (h *HistoryCommand) DisplayHistory(ctx context.Context, start, end time.Time, format string, showChart bool) error {
 	rates, err := h.repo.GetRatesByTimeRange(ctx, start, end)
 	if err != nil {
 		return fmt.Errorf("querying rates: %w", err)
@@ -45,11 +46,24 @@ func (h *HistoryCommand) DisplayHistory(ctx context.Context, start, end time.Tim
 		h.displayCSV(rates)
 	case "json":
 		h.displayJSON(rates)
+	case "chart":
+		h.displayChart(rates)
+		return nil
 	default:
 		h.displayTable(rates, start, end)
 	}
 
+	// Show chart after table if requested
+	if showChart && format != "chart" {
+		h.displayChart(rates)
+	}
+
 	return nil
+}
+
+func (h *HistoryCommand) displayChart(rates []storage.ExchangeRate) {
+	width, height := chart.GetTerminalDimensions()
+	chart.PrintChartWithStats(rates, width, height)
 }
 
 func (h *HistoryCommand) displayTable(rates []storage.ExchangeRate, start, end time.Time) {

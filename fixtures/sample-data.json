@@ -1,0 +1,119 @@
+{
+  "returnCode": "SUC0000",
+  "errorMsg": null,
+  "body": {
+    "data": [
+      {
+        "ccyNbr": "港币",
+        "rtbBid": "91.14",
+        "rthOfr": "91.32",
+        "rtcOfr": "91.32",
+        "rthBid": "90.96",
+        "rtcBid": "90.96",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "新西兰元",
+        "rtbBid": "396.57",
+        "rthOfr": "398.16",
+        "rtcOfr": "398.16",
+        "rthBid": "394.98",
+        "rtcBid": "394.98",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "澳大利亚元",
+        "rtbBid": "457.11",
+        "rthOfr": "458.94",
+        "rtcOfr": "458.94",
+        "rthBid": "455.28",
+        "rtcBid": "455.28",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "美元",
+        "rtbBid": "708.80",
+        "rthOfr": "710.57",
+        "rtcOfr": "710.57",
+        "rthBid": "707.49",
+        "rtcBid": "707.49",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "欧元",
+        "rtbBid": "817.03",
+        "rthOfr": "820.30",
+        "rtcOfr": "820.30",
+        "rthBid": "813.76",
+        "rtcBid": "813.76",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "加拿大元",
+        "rtbBid": "501.81",
+        "rthOfr": "503.82",
+        "rtcOfr": "503.82",
+        "rthBid": "499.80",
+        "rtcBid": "499.80",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "英镑",
+        "rtbBid": "929.24",
+        "rthOfr": "932.96",
+        "rtcOfr": "932.96",
+        "rthBid": "925.52",
+        "rtcBid": "925.52",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "日元",
+        "rtbBid": "4.5305",
+        "rthOfr": "4.5486",
+        "rtcOfr": "4.5486",
+        "rthBid": "4.5124",
+        "rtcBid": "4.5124",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "新加坡元",
+        "rtbBid": "543.98",
+        "rthOfr": "546.16",
+        "rtcOfr": "546.16",
+        "rthBid": "541.80",
+        "rtcBid": "541.80",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      },
+      {
+        "ccyNbr": "瑞士法郎",
+        "rtbBid": "874.95",
+        "rthOfr": "878.45",
+        "rtcOfr": "878.45",
+        "rthBid": "871.45",
+        "rtcBid": "871.45",
+        "ratTim": "20:11:02",
+        "ratDat": "2025年11月25日",
+        "ccyExc": "10"
+      }
+    ],
+    "time": "2025-11-25 20:11"
+  }
+}

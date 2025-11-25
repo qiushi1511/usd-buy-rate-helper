@@ -2,10 +2,13 @@
 
 A lightweight monitoring system that tracks the USD/CNY exchange rate from China Merchants Bank's API and provides historical analysis.
 
-## Features (MVP)
+## Features
 
 - **Background Polling**: Continuously polls CMB API every minute for USD exchange rates
 - **SQLite Storage**: Stores historical data locally with date-based partitioning
+- **Real-time Monitoring**: Display current exchange rate with live updates
+- **Historical Analysis**: Query rates by time range with multiple output formats
+- **Daily Statistics**: Peak rate analysis and average calculations
 - **Graceful Shutdown**: Handles Ctrl+C and SIGTERM signals properly
 
 ## Prerequisites
@@ -56,18 +59,146 @@ Start the background polling service that collects USD exchange rates every minu
 ./ratemon daemon -d /var/lib/ratemon/rates.db
 ```
 
-### Verify Data Collection
+### Monitor Current Rate
 
-While the daemon is running, you can directly query the SQLite database to verify data collection:
+Display the current/latest exchange rate:
 
 ```bash
-sqlite3 ./data/rates.db "SELECT * FROM exchange_rates ORDER BY collected_at DESC LIMIT 10;"
+# Show current rate once
+./ratemon monitor --once
+
+# Live monitoring with auto-refresh every 10 seconds (default)
+./ratemon monitor
+
+# Custom refresh interval
+./ratemon monitor --refresh 5s
 ```
 
-Or check the total number of records:
+**Example Output:**
+```
+USD/CNY Exchange Rate
+═════════════════════
+
+  Rate:      7.0749 CNY
+  Time:      2025-11-25 20:25:30
+  Age:       15s ago
+
+  Change:    ↑ 0.0012 (0.02%)
+  Previous:  7.0737 CNY at 20:24:30
+```
+
+### Query Historical Data
+
+View exchange rates for specific time ranges:
 
 ```bash
-sqlite3 ./data/rates.db "SELECT COUNT(*) FROM exchange_rates;"
+# Last 2 hours
+./ratemon history --last 2h
+
+# Specific time range (today)
+./ratemon history --start "09:00" --end "17:00"
+
+# Specific date and time
+./ratemon history --start "2025-11-25 09:00" --end "2025-11-25 17:00"
+
+# Output as CSV
+./ratemon history --last 1h --format csv
+
+# Output as JSON
+./ratemon history --last 30m --format json
+```
+
+**Example Output (table format):**
+```
+Exchange Rate History
+═════════════════════
+Period: 2025-11-25 19:00:00 to 2025-11-25 21:00:00
+Records: 120
+
+Summary Statistics:
+  Min:     7.0712 CNY
+  Max:     7.0789 CNY
+  Average: 7.0751 CNY
+  Range:   0.0077 CNY
+
+Time                  Rate (CNY)  Change
+──────────────────────────────────────────────────
+2025-11-25 19:01:00      7.0745     -
+2025-11-25 19:02:00      7.0748   ↑+0.0003
+2025-11-25 19:03:00      7.0751   ↑+0.0003
+...
+```
+
+### Daily Peak Analysis
+
+Show the highest exchange rate for each day:
+
+```bash
+# Last 7 days (default)
+./ratemon peak
+
+# Last 30 days
+./ratemon peak --days 30
+
+# Specific dates
+./ratemon peak 2025-11-25 2025-11-24 2025-11-23
+```
+
+**Example Output:**
+```
+Daily Peak Exchange Rates (Last 7 Days)
+═════════════════════════════════════════
+
+Date          Peak (CNY)  Time
+────────────────────────────────────────
+2025-11-25      7.0789  14:23:15
+2025-11-24      7.0812  16:45:30
+2025-11-23      7.0798  11:20:45
+
+Summary:
+  Highest Peak:   7.0812 CNY
+  Lowest Peak:    7.0789 CNY
+  Average Peak:   7.0800 CNY
+  Peak Range:     0.0023 CNY
+```
+
+### Daily Average Analysis
+
+Calculate average exchange rates for each day:
+
+```bash
+# Last 7 days (default)
+./ratemon average
+
+# Last 30 days with comparison
+./ratemon average --days 30 --compare
+
+# Specific dates with comparison
+./ratemon average 2025-11-25 2025-11-24 --compare
+```
+
+**Example Output:**
+```
+Daily Average Exchange Rates (Last 7 Days)
+═══════════════════════════════════════════
+
+Date          Average    Min        Max        Volatility  Samples
+───────────────────────────────────────────────────────────────────
+2025-11-25    7.0751    7.0712    7.0789    0.0077       1440
+2025-11-24    7.0785    7.0745    7.0812    0.0067       1440
+2025-11-23    7.0772    7.0730    7.0798    0.0068       1440
+
+Comparison Across Dates
+══════════════════════
+
+  Overall Average:    7.0770 CNY
+  Absolute Minimum:   7.0712 CNY
+  Absolute Maximum:   7.0812 CNY
+  Total Range:        0.0100 CNY
+
+Day-to-Day Changes:
+  2025-11-24 → 2025-11-25:  ↓ -0.0034 (-0.04%) [down]
+  2025-11-23 → 2025-11-24:  ↑ 0.0013 (0.02%) [up]
 ```
 
 ### Stop the Daemon
@@ -84,14 +215,19 @@ usd-buy-rate-monitor/
 │   ├── api/                  # CMB API client
 │   │   ├── client.go        # HTTP client with retry logic
 │   │   └── models.go        # API response models
-│   ├── storage/             # Data persistence layer
+│   ├── cli/                  # CLI command implementations
+│   │   ├── monitor.go       # Monitor command
+│   │   ├── history.go       # History command
+│   │   ├── peak.go          # Peak analysis command
+│   │   └── average.go       # Average calculation command
+│   ├── storage/              # Data persistence layer
 │   │   ├── db.go            # Database connection
 │   │   └── repository.go    # Data access methods
-│   └── poller/              # Background polling service
+│   └── poller/               # Background polling service
 │       └── poller.go
-├── migrations/              # SQL schema migrations
+├── migrations/               # SQL schema migrations
 │   └── 001_initial_schema.sql
-├── data/                    # Database files (gitignored)
+├── data/                     # Database files (gitignored)
 ├── go.mod
 └── README.md
 ```
@@ -146,13 +282,33 @@ CREATE INDEX idx_rates_collected ON exchange_rates(collected_at);
 - Ensure the `data/` directory is writable
 - On Linux/Mac: `chmod 755 data/`
 
-## Coming Soon
+**No data available:**
+- Make sure the daemon is running and has collected some data
+- Check that the database path is correct
+- Verify data with: `sqlite3 ./data/rates.db "SELECT COUNT(*) FROM exchange_rates;"`
 
-Additional CLI commands for data analysis (in development):
-- `ratemon monitor` - Real-time rate display
-- `ratemon history` - Query historical data
-- `ratemon peak` - Daily peak analysis
-- `ratemon average` - Daily average calculation
+## Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `daemon` | Run background polling service |
+| `monitor` | Display current/latest exchange rate |
+| `history` | Query historical rates by time range |
+| `peak` | Show daily peak exchange rates |
+| `average` | Calculate daily average rates |
+
+Run `./ratemon <command> --help` for detailed usage of each command.
+
+## Future Enhancements
+
+Potential features for future releases:
+- Data retention and aggregation (30-day policy)
+- Alert/notification system for threshold monitoring
+- ASCII charts for terminal visualization
+- Web dashboard for browser-based monitoring
+- Export to Excel format
+- Multi-currency support
+- Systemd service configuration for production deployment
 
 ## License
 

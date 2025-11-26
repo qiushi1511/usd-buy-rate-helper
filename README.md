@@ -75,7 +75,7 @@ The daemon can monitor rates and send alerts when certain conditions are met:
 - **Change Alerts**: Notify when rate changes significantly in short time
 - **Pattern Alerts**: Notify when current rate deviates from historical patterns
 
-Alerts are logged to stdout/stderr and can be captured by log management systems.
+Alerts are logged to stdout/stderr and can be sent to **WeChat Work (企业微信)** group chats in Chinese.
 
 **Examples:**
 
@@ -97,6 +97,17 @@ Alerts are logged to stdout/stderr and can be captured by log management systems
 
 # Combine multiple alert types
 ./ratemon daemon --alert-high 7.15 --alert-low 6.95 --alert-change 0.3 --alert-pattern
+
+# Send alerts to WeChat Work group chat
+./ratemon daemon --alert-high 7.10 --wechat-webhook 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY'
+
+# Full configuration with WeChat notifications
+./ratemon daemon \
+  --alert-high 7.15 \
+  --alert-low 6.95 \
+  --alert-change 0.5 \
+  --alert-pattern \
+  --wechat-webhook 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY'
 
 # Disable business hours check (poll 24/7)
 ./ratemon daemon --no-business-hours
@@ -385,6 +396,81 @@ Weekly Insights:
 ### Stop the Daemon
 
 Press `Ctrl+C` to stop the daemon gracefully. The poller will finish the current operation and shut down cleanly.
+
+### WeChat Work Notifications Setup (企业微信通知)
+
+Get exchange rate alerts sent directly to your WeChat Work group chat in Chinese.
+
+**Step 1: Create a Group Robot in WeChat Work**
+
+1. Open WeChat Work (企业微信) on your phone or desktop
+2. Go to your group chat where you want to receive alerts
+3. Click on group settings (⋯) → "Group Robots" (群机器人) → "Add Robot" (添加机器人)
+4. Name the robot (e.g., "汇率监控" / Rate Monitor)
+5. Copy the Webhook URL (it looks like: `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=XXXXXXXX`)
+
+**Step 2: Install Daemon with WeChat Notifications (macOS)**
+
+Use the installation script with your webhook URL:
+
+```bash
+cd /path/to/usd-buy-rate-monitor
+
+# Simple installation with WeChat notifications
+./scripts/install-macos-wechat.sh 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY'
+
+# With alert thresholds
+./scripts/install-macos-wechat.sh \
+  'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY' \
+  7.15 \    # Alert when rate exceeds 7.15
+  6.95 \    # Alert when rate drops below 6.95
+  0.5       # Alert on 0.5% change
+```
+
+**Step 3: Verify Setup**
+
+The daemon will send a WeChat notification when alerts are triggered. You can test by:
+
+```bash
+# Check daemon is running
+launchctl list | grep ratemon
+
+# View logs to confirm WeChat is enabled
+tail -f logs/ratemon.log
+# Should show: "WeChat notifications enabled"
+```
+
+**Alert Message Examples (in Chinese):**
+
+When rate exceeds threshold:
+```
+【汇率提醒】汇率突破上限
+📈 当前汇率：7.1025 CNY
+⚠️ 设定上限：7.10 CNY
+🕐 触发时间：2025-11-26 14:30:15
+```
+
+When rate drops below threshold:
+```
+【汇率提醒】汇率跌破下限
+📉 当前汇率：6.9450 CNY
+⚠️ 设定下限：6.95 CNY
+🕐 触发时间：2025-11-26 16:20:30
+```
+
+When rate changes rapidly:
+```
+【汇率提醒】汇率快速上涨
+📊 当前汇率：7.0850 CNY
+📈 涨幅：+0.52%
+🕐 触发时间：2025-11-26 10:15:45
+```
+
+**Troubleshooting:**
+
+- **No notifications received**: Check webhook URL is correct in the plist file
+- **Error in logs**: Verify the WeChat group robot is still active
+- **Wrong language**: Messages are automatically sent in Chinese for better readability
 
 ## Project Structure
 

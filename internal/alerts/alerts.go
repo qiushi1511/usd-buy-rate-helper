@@ -1,9 +1,13 @@
 package alerts
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/qiushi1511/usd-buy-rate-monitor/internal/storage"
@@ -242,4 +246,118 @@ func (n *LogNotifier) Notify(alert Alert) error {
 		"timestamp", alert.Timestamp.Format("2006-01-02 15:04:05"),
 	)
 	return nil
+}
+
+// WeChatNotifier sends alerts to WeChat Work group chat robot
+type WeChatNotifier struct {
+	webhookURL string
+	logger     *slog.Logger
+}
+
+// NewWeChatNotifier creates a notifier that sends to WeChat Work
+func NewWeChatNotifier(webhookURL string, logger *slog.Logger) *WeChatNotifier {
+	return &WeChatNotifier{
+		webhookURL: webhookURL,
+		logger:     logger,
+	}
+}
+
+// Notify sends the alert to WeChat Work group chat
+func (n *WeChatNotifier) Notify(alert Alert) error {
+	// Format message in Chinese
+	message := n.formatChineseMessage(alert)
+
+	// Prepare WeChat Work API request
+	payload := map[string]interface{}{
+		"msgtype": "text",
+		"text": map[string]string{
+			"content": message,
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshaling WeChat payload: %w", err)
+	}
+
+	// Send HTTP request
+	resp, err := http.Post(n.webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("sending WeChat notification: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("WeChat API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response to check for errors
+	var result struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("decoding WeChat response: %w", err)
+	}
+
+	if result.ErrCode != 0 {
+		return fmt.Errorf("WeChat API error %d: %s", result.ErrCode, result.ErrMsg)
+	}
+
+	n.logger.Debug("WeChat notification sent successfully")
+	return nil
+}
+
+// formatChineseMessage formats the alert message in Chinese
+func (n *WeChatNotifier) formatChineseMessage(alert Alert) string {
+	timeStr := alert.Timestamp.Format("2006-01-02 15:04:05")
+
+	var message string
+	switch alert.Type {
+	case AlertTypeThresholdHigh:
+		message = fmt.Sprintf("【汇率提醒】汇率突破上限\n"+
+			"📈 当前汇率：%.4f CNY\n"+
+			"⚠️ 设定上限：%.4f CNY\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Threshold, timeStr)
+
+	case AlertTypeThresholdLow:
+		message = fmt.Sprintf("【汇率提醒】汇率跌破下限\n"+
+			"📉 当前汇率：%.4f CNY\n"+
+			"⚠️ 设定下限：%.4f CNY\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Threshold, timeStr)
+
+	case AlertTypeChangeIncrease:
+		message = fmt.Sprintf("【汇率提醒】汇率快速上涨\n"+
+			"📊 当前汇率：%.4f CNY\n"+
+			"📈 涨幅：+%.2f%%\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Change, timeStr)
+
+	case AlertTypeChangeDecrease:
+		message = fmt.Sprintf("【汇率提醒】汇率快速下跌\n"+
+			"📊 当前汇率：%.4f CNY\n"+
+			"📉 跌幅：%.2f%%\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Change, timeStr)
+
+	case AlertTypeUnusual:
+		message = fmt.Sprintf("【汇率提醒】汇率异常波动\n"+
+			"📊 当前汇率：%.4f CNY\n"+
+			"📈 历史均值：%.4f CNY\n"+
+			"⚠️ 异常偏离正常区间\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Threshold, timeStr)
+
+	default:
+		message = fmt.Sprintf("【汇率提醒】\n"+
+			"💱 当前汇率：%.4f CNY\n"+
+			"🕐 时间：%s",
+			alert.Rate, timeStr)
+	}
+
+	return message
 }

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.qiushi1511.ratemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>PROJECT_DIR/ratemon</string>
+        <string>daemon</string>
+        <string>--db</string>
+        <string>PROJECT_DIR/data/rates.db</string>
+        <string>--migrations</string>
+        <string>PROJECT_DIR/migrations</string>
+        <!-- WeChat webhook URL - replace with your actual webhook URL -->
+        <string>--wechat-webhook</string>
+        <string>https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=163c49e3-585c-4697-afdc-c020585f4d56</string>
+        <!-- Alert configuration - uncomment and modify as needed -->
+        <string>--alert-high</string>
+        <string>7.10</string>
+        <string>--alert-low</string>
+        <string>7.05</string>
+        <string>--alert-change</string>
+        <string>0.3</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>PROJECT_DIR</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>PROJECT_DIR/logs/ratemon.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>PROJECT_DIR/logs/ratemon.error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

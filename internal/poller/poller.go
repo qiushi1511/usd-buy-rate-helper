@@ -43,11 +43,19 @@ func WithoutBusinessHours() PollerOption {
 }
 
 // WithAlerts enables alert checking
-func WithAlerts(config *alerts.Config) PollerOption {
+func WithAlerts(config *alerts.Config, wechatWebhook string) PollerOption {
 	return func(p *Poller) {
 		p.alertManager = alerts.NewManager(config, p.repo, p.logger)
+
+		// Always add log notifier
 		p.notifiers = []alerts.Notifier{
 			alerts.NewLogNotifier(p.logger),
+		}
+
+		// Add WeChat notifier if webhook URL is provided
+		if wechatWebhook != "" {
+			p.notifiers = append(p.notifiers, alerts.NewWeChatNotifier(wechatWebhook, p.logger))
+			p.logger.Info("WeChat notifications enabled")
 		}
 	}
 }

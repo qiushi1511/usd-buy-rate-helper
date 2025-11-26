@@ -10,6 +10,7 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 - **Real-time Monitoring**: Display current exchange rate with live updates
 - **Historical Analysis**: Query rates by time range with multiple output formats
 - **Daily Statistics**: Peak rate analysis and average calculations
+- **Pattern Recognition**: Discover hourly and weekly patterns to predict optimal exchange times
 - **ASCII Charts**: Visualize exchange rate trends directly in the terminal
 - **Graceful Shutdown**: Handles Ctrl+C and SIGTERM signals properly
 
@@ -272,6 +273,74 @@ Volatility Analysis:
                     Daily Volatility (2025-11-23 to 2025-11-25)
 ```
 
+### Pattern Analysis
+
+Discover historical patterns to identify optimal times for currency exchange:
+
+```bash
+# Analyze last 30 days (default)
+./ratemon patterns
+
+# Analyze specific time window
+./ratemon patterns --days 60 --weeks 8
+
+# Shorter analysis period
+./ratemon patterns --days 7 --weeks 2
+```
+
+**Example Output:**
+```
+Exchange Rate Patterns Analysis
+═══════════════════════════════
+Analyzing last 30 days of data
+
+Hourly Patterns (Business Hours 08:00-22:00 CST)
+─────────────────────────────────────────────────
+
+Hour      Avg Rate    Min         Max         Samples   Peak Freq
+───────────────────────────────────────────────────────────────────────────
+08:00        7.0725      7.0698      7.0755       850    2 ( 6.7%)
+09:00        7.0738      7.0702      7.0778       860    5 (16.7%)
+10:00        7.0745      7.0710      7.0789       865    4 (13.3%)
+11:00        7.0752      7.0715      7.0795       870    3 (10.0%)
+12:00        7.0758      7.0720      7.0802       875    6 (20.0%) 🏆 Most peaks
+13:00        7.0761      7.0722      7.0805       880    5 (16.7%)
+14:00        7.0763      7.0725      7.0810       885    7 (23.3%) ⭐ Highest avg
+15:00        7.0758      7.0720      7.0800       882    2 ( 6.7%)
+16:00        7.0750      7.0712      7.0785       878    1 ( 3.3%)
+...
+
+Key Insights:
+  • Highest average rate: 14:00 (7.0763 CNY)
+  • Peak time: 14:00 (7/30 days = 23.3%)
+  • Most volatile hour: 14:00 (range: 0.0085 CNY)
+
+Day of Week Patterns (Last 4 weeks)
+────────────────────────────────────
+
+Day         Avg Rate    Min         Max         Avg Range     Days
+───────────────────────────────────────────────────────────────────────────
+Sunday          7.0720      7.0698      7.0750      0.0052           4
+Monday          7.0735      7.0705      7.0775      0.0070           4
+Tuesday         7.0748      7.0715      7.0790      0.0075           5 ⭐ Best
+Wednesday       7.0745      7.0710      7.0785      0.0075           4
+Thursday        7.0738      7.0702      7.0780      0.0078           5
+Friday          7.0730      7.0695      7.0770      0.0075           4
+Saturday        7.0715      7.0685      7.0745      0.0060           4 ↓ Lowest
+
+Weekly Insights:
+  • Best day: Tuesday (avg 7.0748 CNY)
+  • Lowest day: Saturday (avg 7.0715 CNY)
+  • Weekly variance: 0.0033 CNY
+  • Most volatile day: Thursday (avg range: 0.0078 CNY)
+```
+
+**Use Cases:**
+- **Optimal Timing**: Identify hours when rates are historically highest
+- **Trend Analysis**: Understand weekly patterns to plan currency exchanges
+- **Risk Assessment**: See which hours/days have highest volatility
+- **Predictive Insights**: Use historical frequency to estimate when peaks occur
+
 ### Stop the Daemon
 
 Press `Ctrl+C` to stop the daemon gracefully. The poller will finish the current operation and shut down cleanly.
@@ -291,6 +360,7 @@ usd-buy-rate-monitor/
 │   │   ├── history.go       # History command
 │   │   ├── peak.go          # Peak analysis command
 │   │   ├── average.go       # Average calculation command
+│   │   ├── patterns.go      # Pattern analysis command
 │   │   └── common.go        # Common utilities
 │   ├── storage/              # Data persistence layer
 │   │   ├── db.go            # Database connection
@@ -377,6 +447,7 @@ CREATE INDEX idx_rates_collected ON exchange_rates(collected_at);
 | `history` | Query historical rates by time range |
 | `peak` | Show daily peak exchange rates |
 | `average` | Calculate daily average rates |
+| `patterns` | Analyze hourly and weekly rate patterns |
 
 Run `./ratemon <command> --help` for detailed usage of each command.
 

@@ -215,3 +215,163 @@ func (r *Repository) Count(ctx context.Context) (int64, error) {
 	}
 	return count, nil
 }
+
+// HourlyPattern represents statistics for a specific hour of the day
+type HourlyPattern struct {
+	Hour        int
+	AvgRate     float64
+	MinRate     float64
+	MaxRate     float64
+	SampleCount int
+	PeakFreq    int // How many times this hour had the daily peak
+}
+
+// GetHourlyPatterns analyzes rate patterns by hour of day over the last N days
+func (r *Repository) GetHourlyPatterns(ctx context.Context, days int) ([]HourlyPattern, error) {
+	query := `
+		SELECT
+			CAST(strftime('%H', collected_at) AS INTEGER) as hour,
+			AVG(rtc_bid) as avg_rate,
+			MIN(rtc_bid) as min_rate,
+			MAX(rtc_bid) as max_rate,
+			COUNT(*) as sample_count
+		FROM exchange_rates
+		WHERE date_partition >= date('now', '-' || ? || ' days')
+		GROUP BY hour
+		ORDER BY hour
+	`
+
+	rows, err := r.db.conn.QueryContext(ctx, query, days)
+	if err != nil {
+		return nil, fmt.Errorf("querying hourly patterns: %w", err)
+	}
+	defer rows.Close()
+
+	var patterns []HourlyPattern
+	for rows.Next() {
+		var p HourlyPattern
+		err := rows.Scan(
+			&p.Hour,
+			&p.AvgRate,
+			&p.MinRate,
+			&p.MaxRate,
+			&p.SampleCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning hourly pattern: %w", err)
+		}
+		patterns = append(patterns, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating hourly patterns: %w", err)
+	}
+
+	// Calculate peak frequency for each hour
+	for i := range patterns {
+		freq, err := r.getHourPeakFrequency(ctx, patterns[i].Hour, days)
+		if err != nil {
+			r.logger.Warn("failed to get peak frequency", "hour", patterns[i].Hour, "error", err)
+		} else {
+			patterns[i].PeakFreq = freq
+		}
+	}
+
+	return patterns, nil
+}
+
+// getHourPeakFrequency counts how many times a given hour had the daily peak
+func (r *Repository) getHourPeakFrequency(ctx context.Context, hour, days int) (int, error) {
+	query := `
+		WITH daily_peaks AS (
+			SELECT
+				date_partition,
+				MAX(rtc_bid) as peak_rate
+			FROM exchange_rates
+			WHERE date_partition >= date('now', '-' || ? || ' days')
+			GROUP BY date_partition
+		)
+		SELECT COUNT(DISTINCT e.date_partition)
+		FROM exchange_rates e
+		INNER JOIN daily_peaks dp ON e.date_partition = dp.date_partition AND e.rtc_bid = dp.peak_rate
+		WHERE CAST(strftime('%H', e.collected_at) AS INTEGER) = ?
+	`
+
+	var count int
+	err := r.db.conn.QueryRowContext(ctx, query, days, hour).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("querying peak frequency: %w", err)
+	}
+
+	return count, nil
+}
+
+// DayOfWeekPattern represents statistics for a specific day of the week
+type DayOfWeekPattern struct {
+	DayOfWeek   int    // 0=Sunday, 1=Monday, etc.
+	DayName     string
+	AvgRate     float64
+	MinRate     float64
+	MaxRate     float64
+	AvgRange    float64
+	SampleDays  int
+}
+
+// GetDayOfWeekPatterns analyzes rate patterns by day of week
+func (r *Repository) GetDayOfWeekPatterns(ctx context.Context, weeks int) ([]DayOfWeekPattern, error) {
+	query := `
+		WITH daily_data AS (
+			SELECT
+				date_partition,
+				strftime('%w', collected_at) as dow,
+				AVG(rtc_bid) as avg_rate,
+				MIN(rtc_bid) as min_rate,
+				MAX(rtc_bid) as max_rate,
+				(MAX(rtc_bid) - MIN(rtc_bid)) as range
+			FROM exchange_rates
+			WHERE date_partition >= date('now', '-' || ? || ' days')
+			GROUP BY date_partition
+		)
+		SELECT
+			CAST(dow AS INTEGER) as day_of_week,
+			AVG(avg_rate) as avg_rate,
+			MIN(min_rate) as min_rate,
+			MAX(max_rate) as max_rate,
+			AVG(range) as avg_range,
+			COUNT(*) as sample_days
+		FROM daily_data
+		GROUP BY dow
+		ORDER BY day_of_week
+	`
+
+	rows, err := r.db.conn.QueryContext(ctx, query, weeks*7)
+	if err != nil {
+		return nil, fmt.Errorf("querying day of week patterns: %w", err)
+	}
+	defer rows.Close()
+
+	dayNames := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+	var patterns []DayOfWeekPattern
+	for rows.Next() {
+		var p DayOfWeekPattern
+		err := rows.Scan(
+			&p.DayOfWeek,
+			&p.AvgRate,
+			&p.MinRate,
+			&p.MaxRate,
+			&p.AvgRange,
+			&p.SampleDays,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning day of week pattern: %w", err)
+		}
+		p.DayName = dayNames[p.DayOfWeek]
+		patterns = append(patterns, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating day of week patterns: %w", err)
+	}
+
+	return patterns, nil
+}

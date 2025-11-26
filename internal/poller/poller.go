@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/qiushi1511/usd-buy-rate-monitor/internal/alerts"
 	"github.com/qiushi1511/usd-buy-rate-monitor/internal/api"
 	"github.com/qiushi1511/usd-buy-rate-monitor/internal/storage"
 )
@@ -18,6 +19,8 @@ type Poller struct {
 	skipOffHours        bool
 	businessHoursStart  int // Hour in CST (0-23)
 	businessHoursEnd    int // Hour in CST (0-23)
+	alertManager        *alerts.Manager
+	notifiers           []alerts.Notifier
 }
 
 // PollerOption configures the poller
@@ -36,6 +39,16 @@ func WithBusinessHours(start, end int) PollerOption {
 func WithoutBusinessHours() PollerOption {
 	return func(p *Poller) {
 		p.skipOffHours = false
+	}
+}
+
+// WithAlerts enables alert checking
+func WithAlerts(config *alerts.Config) PollerOption {
+	return func(p *Poller) {
+		p.alertManager = alerts.NewManager(config, p.repo, p.logger)
+		p.notifiers = []alerts.Notifier{
+			alerts.NewLogNotifier(p.logger),
+		}
 	}
 }
 
@@ -133,6 +146,18 @@ func (p *Poller) poll(ctx context.Context) error {
 
 	if err := p.repo.InsertRate(ctx, rate); err != nil {
 		return fmt.Errorf("storing rate: %w", err)
+	}
+
+	// Check for alerts if alert manager is configured
+	if p.alertManager != nil {
+		alertsTriggered := p.alertManager.Check(ctx, usdRate, startTime)
+		for _, alert := range alertsTriggered {
+			for _, notifier := range p.notifiers {
+				if err := notifier.Notify(alert); err != nil {
+					p.logger.Error("failed to send alert", "error", err)
+				}
+			}
+		}
 	}
 
 	elapsed := time.Since(startTime)

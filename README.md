@@ -11,6 +11,7 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 - **Historical Analysis**: Query rates by time range with multiple output formats
 - **Daily Statistics**: Peak rate analysis and average calculations
 - **Pattern Recognition**: Discover hourly and weekly patterns to predict optimal exchange times
+- **Alert System**: Get notified when rates cross thresholds or show unusual patterns
 - **ASCII Charts**: Visualize exchange rate trends directly in the terminal
 - **Graceful Shutdown**: Handles Ctrl+C and SIGTERM signals properly
 
@@ -22,17 +23,20 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/qiushi1511/usd-buy-rate-monitor.git
 cd usd-buy-rate-monitor
 ```
 
 2. Install dependencies:
+
 ```bash
 go mod download
 ```
 
 3. Build the binary:
+
 ```bash
 go build -o ratemon ./cmd/ratemon
 ```
@@ -48,8 +52,15 @@ Start the background polling service that collects USD exchange rates every minu
 ```
 
 **Options:**
+
 - `-i, --interval duration` - Polling interval (default: 1m)
 - `--no-business-hours` - Disable business hours check (poll 24/7)
+- `--alert-high float` - Alert when rate exceeds this threshold
+- `--alert-low float` - Alert when rate drops below this threshold
+- `--alert-change float` - Alert when rate changes by this percent (e.g., 0.5 for 0.5%)
+- `--alert-pattern` - Alert on unusual patterns (deviation from historical)
+- `--alert-pattern-stddev float` - Std deviations for pattern alerts (default: 2.0)
+- `--alert-cooldown int` - Minutes between repeat alerts of same type (default: 60)
 - `-d, --db string` - Database file path (default: ./data/rates.db)
 - `-m, --migrations string` - Migrations directory path (default: ./migrations)
 - `-v, --verbose` - Enable verbose logging
@@ -57,13 +68,35 @@ Start the background polling service that collects USD exchange rates every minu
 **Business Hours:**
 By default, the daemon only polls the CMB API during business hours (08:00-22:00 CST) since exchange rates don't update outside these hours. This reduces unnecessary API calls by ~60%. Use `--no-business-hours` to disable this optimization and poll 24/7.
 
+**Alert System:**
+The daemon can monitor rates and send alerts when certain conditions are met:
+
+- **Threshold Alerts**: Notify when rate goes above/below specified values
+- **Change Alerts**: Notify when rate changes significantly in short time
+- **Pattern Alerts**: Notify when current rate deviates from historical patterns
+
+Alerts are logged to stdout/stderr and can be captured by log management systems.
+
 **Examples:**
+
 ```bash
 # Standard daemon with business hours optimization
 ./ratemon daemon
 
 # Poll every 30 seconds with verbose logging
 ./ratemon daemon -i 30s -v
+
+# Alert if rate exceeds 7.10 or drops below 7.00
+./ratemon daemon --alert-high 7.10 --alert-low 7.00
+
+# Alert on 0.5% changes within polling interval
+./ratemon daemon --alert-change 0.5
+
+# Alert on unusual patterns (2 std deviations from historical average)
+./ratemon daemon --alert-pattern
+
+# Combine multiple alert types
+./ratemon daemon --alert-high 7.15 --alert-low 6.95 --alert-change 0.3 --alert-pattern
 
 # Disable business hours check (poll 24/7)
 ./ratemon daemon --no-business-hours
@@ -88,6 +121,7 @@ Display the current/latest exchange rate:
 ```
 
 **Example Output:**
+
 ```
 USD/CNY Exchange Rate
 ═════════════════════
@@ -128,6 +162,7 @@ View exchange rates for specific time ranges:
 ```
 
 **Example Output (table format):**
+
 ```
 Exchange Rate History
 ═════════════════════
@@ -149,6 +184,7 @@ Time                  Rate (CNY)  Change
 ```
 
 **Example Output (with chart):**
+
 ```
  7.08 ┼╮
  7.08 ┤╰╮
@@ -182,6 +218,7 @@ Show the highest exchange rate for each day:
 ```
 
 **Example Output:**
+
 ```
 Daily Peak Exchange Rates (Last 7 Days)
 ═════════════════════════════════════════
@@ -218,6 +255,7 @@ Calculate average exchange rates for each day:
 ```
 
 **Example Output:**
+
 ```
 Daily Average Exchange Rates (Last 7 Days)
 ═══════════════════════════════════════════
@@ -247,6 +285,7 @@ Volatility Analysis:
 ```
 
 **Example Output (with charts):**
+
 ```
  7.08 ┼╮
  7.08 ┤╰─╮
@@ -289,6 +328,7 @@ Discover historical patterns to identify optimal times for currency exchange:
 ```
 
 **Example Output:**
+
 ```
 Exchange Rate Patterns Analysis
 ═══════════════════════════════
@@ -336,6 +376,7 @@ Weekly Insights:
 ```
 
 **Use Cases:**
+
 - **Optimal Timing**: Identify hours when rates are historically highest
 - **Trend Analysis**: Understand weekly patterns to plan currency exchanges
 - **Risk Assessment**: See which hours/days have highest volatility
@@ -380,20 +421,24 @@ usd-buy-rate-monitor/
 ## How It Works
 
 1. **API Client**: Fetches exchange rate data from `https://m.cmbchina.com/api/rate/fx-rate`
+
    - Implements exponential backoff retry logic for reliability
    - Handles network errors and API failures gracefully
 
 2. **Data Extraction**: Parses the CMB API response to extract USD rate
+
    - Identifies USD currency by Chinese name "美元"
    - Extracts `rtcBid` field and divides by 100 (rate is per 10 units)
 
 3. **Business Hours Check**: Optimizes resource usage by respecting CMB operating hours
+
    - Default hours: 08:00-22:00 CST (China Standard Time, UTC+8)
    - Skips API calls outside business hours since rates don't update
    - Reduces API calls by ~60% and saves database writes
    - Can be disabled with `--no-business-hours` flag
 
 4. **Storage**: Saves rates to SQLite database
+
    - Each record includes: rate value, timestamp, and date partition
    - Indexed by date and time for efficient queries
 
@@ -421,32 +466,36 @@ CREATE INDEX idx_rates_collected ON exchange_rates(collected_at);
 ## Troubleshooting
 
 **Database locked errors:**
+
 - The database uses WAL mode to reduce lock contention
 - Ensure only one daemon instance is running at a time
 
 **API errors:**
+
 - Check your internet connection
 - The client automatically retries failed requests with exponential backoff
 - Check logs for specific error messages
 
 **Permissions issues:**
+
 - Ensure the `data/` directory is writable
 - On Linux/Mac: `chmod 755 data/`
 
 **No data available:**
+
 - Make sure the daemon is running and has collected some data
 - Check that the database path is correct
 - Verify data with: `sqlite3 ./data/rates.db "SELECT COUNT(*) FROM exchange_rates;"`
 
 ## Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `daemon` | Run background polling service |
-| `monitor` | Display current/latest exchange rate |
-| `history` | Query historical rates by time range |
-| `peak` | Show daily peak exchange rates |
-| `average` | Calculate daily average rates |
+| Command    | Description                             |
+| ---------- | --------------------------------------- |
+| `daemon`   | Run background polling service          |
+| `monitor`  | Display current/latest exchange rate    |
+| `history`  | Query historical rates by time range    |
+| `peak`     | Show daily peak exchange rates          |
+| `average`  | Calculate daily average rates           |
 | `patterns` | Analyze hourly and weekly rate patterns |
 
 Run `./ratemon <command> --help` for detailed usage of each command.
@@ -454,8 +503,9 @@ Run `./ratemon <command> --help` for detailed usage of each command.
 ## Future Enhancements
 
 Potential features for future releases:
+
 - Data retention and aggregation (30-day policy)
-- Alert/notification system for threshold monitoring
+- Enhanced notifications (email, webhook, Slack integration)
 - Web dashboard for browser-based monitoring
 - Export to Excel format
 - Multi-currency support

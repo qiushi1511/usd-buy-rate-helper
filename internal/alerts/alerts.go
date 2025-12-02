@@ -22,6 +22,7 @@ const (
 	AlertTypeChangeIncrease AlertType = "change_increase"
 	AlertTypeChangeDecrease AlertType = "change_decrease"
 	AlertTypeUnusual        AlertType = "unusual_pattern"
+	AlertTypeTargetReached  AlertType = "target_reached" // Target rate for exchange achieved
 )
 
 // Alert represents an alert condition
@@ -42,6 +43,7 @@ type Config struct {
 	CheckPatterns      bool    // Alert on unusual patterns (deviation from historical)
 	PatternStdDevs     float64 // Number of std deviations for pattern alerts
 	CooldownMinutes    int     // Minutes to wait before repeating same alert
+	TargetRate         float64 // Target rate to achieve for optimal exchange (alerts when reached)
 }
 
 // Manager handles alert checking and notifications
@@ -130,6 +132,20 @@ func (m *Manager) Check(ctx context.Context, rate float64, timestamp time.Time) 
 		patternAlert := m.checkPatternDeviation(ctx, rate, timestamp)
 		if patternAlert != nil {
 			alerts = append(alerts, *patternAlert)
+		}
+	}
+
+	// Check target rate alert (optimal exchange rate achieved)
+	if m.config.TargetRate > 0 && rate >= m.config.TargetRate {
+		if m.shouldAlert(AlertTypeTargetReached) {
+			alerts = append(alerts, Alert{
+				Type:      AlertTypeTargetReached,
+				Message:   fmt.Sprintf("Target rate achieved: %.4f >= %.4f CNY (Good time to exchange!)", rate, m.config.TargetRate),
+				Rate:      rate,
+				Threshold: m.config.TargetRate,
+				Timestamp: timestamp,
+			})
+			m.markAlerted(AlertTypeTargetReached)
 		}
 	}
 
@@ -349,6 +365,14 @@ func (n *WeChatNotifier) formatChineseMessage(alert Alert) string {
 			"📊 当前汇率：%.4f CNY\n"+
 			"📈 历史均值：%.4f CNY\n"+
 			"⚠️ 异常偏离正常区间\n"+
+			"🕐 触发时间：%s",
+			alert.Rate, alert.Threshold, timeStr)
+
+	case AlertTypeTargetReached:
+		message = fmt.Sprintf("【换汇提醒】目标汇率已达成！\n"+
+			"🎯 当前汇率：%.4f CNY\n"+
+			"✅ 目标汇率：%.4f CNY\n"+
+			"💰 建议操作：立即换汇\n"+
 			"🕐 触发时间：%s",
 			alert.Rate, alert.Threshold, timeStr)
 

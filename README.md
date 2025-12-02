@@ -11,6 +11,8 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 - **Historical Analysis**: Query rates by time range with multiple output formats
 - **Daily Statistics**: Peak rate analysis and average calculations
 - **Pattern Recognition**: Discover hourly and weekly patterns to predict optimal exchange times
+- **Smart Recommendations**: AI-powered recommendations on when to exchange (Exchange Now vs Wait)
+- **Target Rate Alerts**: Set target exchange rates and get notified when achieved
 - **Alert System**: Get notified when rates cross thresholds or show unusual patterns
 - **WeChat Work Integration**: Send alerts to WeChat Work (企业微信) group chats in Chinese
 - **Data Retention**: Intelligent multi-tier aggregation (99.7% storage reduction while maintaining prediction accuracy)
@@ -63,6 +65,8 @@ Start the background polling service that collects USD exchange rates every minu
 - `--alert-pattern` - Alert on unusual patterns (deviation from historical)
 - `--alert-pattern-stddev float` - Std deviations for pattern alerts (default: 2.0)
 - `--alert-cooldown int` - Minutes between repeat alerts of same type (default: 60)
+- `--target-rate float` - Target rate to alert when achieved (optimal exchange opportunity)
+- `--wechat-webhook string` - WeChat Work group robot webhook URL for notifications
 - `-d, --db string` - Database file path (default: ./data/rates.db)
 - `-m, --migrations string` - Migrations directory path (default: ./migrations)
 - `-v, --verbose` - Enable verbose logging
@@ -76,6 +80,7 @@ The daemon can monitor rates and send alerts when certain conditions are met:
 - **Threshold Alerts**: Notify when rate goes above/below specified values
 - **Change Alerts**: Notify when rate changes significantly in short time
 - **Pattern Alerts**: Notify when current rate deviates from historical patterns
+- **Target Rate Alerts**: Notify when your target exchange rate is achieved
 
 Alerts are logged to stdout/stderr and can be sent to **WeChat Work (企业微信)** group chats in Chinese.
 
@@ -395,6 +400,116 @@ Weekly Insights:
 - **Risk Assessment**: See which hours/days have highest volatility
 - **Predictive Insights**: Use historical frequency to estimate when peaks occur
 
+### Smart Exchange Recommendations
+
+Get intelligent recommendations on whether to exchange now or wait for a better rate:
+
+```bash
+# Quick one-line recommendation
+./ratemon recommend --quick
+
+# Full recommendation analysis
+./ratemon recommend --amount 10000
+
+# Detailed analysis with hourly predictions
+./ratemon recommend --amount 10000 --details
+
+# Check historical ranking of a specific rate
+./ratemon recommend --check-rate 7.15 --days 30
+```
+
+**Example Output:**
+
+```
+Exchange Recommendation
+═══════════════════════
+
+Current Rate:    7.0667 CNY per USD
+Amount:          10,000.00 RMB → 1,415.09 USD
+
+Recommendation:  ⏳ WAIT - Better Rate Expected
+
+Historical patterns suggest waiting for a better rate.
+
+Confidence:      65% (HIGH)
+
+Analysis:
+  • Current rate is at 37th percentile (below average)
+  • Rate is 0.28% below hourly average
+  • Better rate predicted in 3 hours (+0.27%)
+
+Historical Context (Last 30 Days):
+  Percentile:      37th (out of 100)
+  Ranking:         Below Average (bottom 70%)
+  30-Day Average:  7.0687 CNY
+  30-Day Range:    7.0604 - 7.0749 CNY
+
+Optimal Exchange Window:
+  Time:            13:00 - 14:00 CST
+  Starts in:       2 hours 51 minutes
+  Expected Rate:   7.0723 CNY (+0.79%)
+  Confidence:      72%
+  Reasoning:       Historical data shows 13:00-14:00 typically has higher rates
+
+Risk/Reward Assessment:
+  Potential Gain:  +11.45 USD (if optimal timing)
+  Downside Risk:   -8.92 USD (worst case scenario)
+  Risk Level:      LOW
+
+Next Check:      in 2h 21m
+```
+
+**Quick Check Mode:**
+
+```bash
+./ratemon recommend --quick
+```
+
+Output:
+```
+Rate: 7.0667 CNY  |  ⏳ WAIT  |  Confidence: 65%  |  Percentile: 37th
+Better rate expected around 13:00 CST (7.0723 CNY predicted)
+```
+
+**How It Works:**
+
+The recommendation engine analyzes:
+1. **Percentile Ranking**: Where the current rate sits in the last 30 days (0-100th percentile)
+2. **Hourly Patterns**: Compares to typical rates for this hour based on 30 days of data
+3. **Predictions**: Uses historical patterns to forecast rates for next 4-6 hours
+4. **Risk Analysis**: Estimates potential gain vs downside risk
+
+**Recommendation Actions:**
+
+- **🟢 EXCHANGE NOW**: Current rate is favorable (>75th percentile), good time to exchange
+- **⏳ WAIT**: Better rate likely in next few hours based on patterns
+- **⚪ NEUTRAL**: Rate is acceptable but not exceptional, your choice based on urgency
+
+**Target Rate Alerts:**
+
+Set a target rate and get notified when it's achieved:
+
+```bash
+# Set target rate in daemon
+./ratemon daemon --target-rate 7.15 --wechat-webhook 'YOUR_WEBHOOK_URL'
+```
+
+When the rate reaches your target, you'll receive a WeChat notification:
+```
+【换汇提醒】目标汇率已达成！
+🎯 当前汇率：7.1205 CNY
+✅ 目标汇率：7.1200 CNY
+💰 建议操作：立即换汇
+🕐 触发时间：2025-11-26 14:23:15
+```
+
+**Use Cases:**
+
+- **Timing Optimization**: Know exactly when to exchange for maximum value
+- **Reduce Decision Fatigue**: Get clear actionable recommendations instead of guessing
+- **Risk Management**: Understand potential gain vs downside before deciding
+- **Automated Monitoring**: Set target rate and get notified automatically
+
 ### Data Retention Management
 
 Manage storage efficiently with automatic data aggregation and retention:
@@ -666,6 +781,7 @@ CREATE INDEX idx_rates_collected ON exchange_rates(collected_at);
 | `peak`      | Show daily peak exchange rates                   |
 | `average`   | Calculate daily average rates                    |
 | `patterns`  | Analyze hourly and weekly rate patterns          |
+| `recommend` | Get intelligent exchange timing recommendations  |
 | `retention` | Manage data retention and aggregation            |
 
 Run `./ratemon <command> --help` for detailed usage of each command.

@@ -5,7 +5,7 @@ A lightweight monitoring system that tracks the USD/CNY exchange rate from China
 ## Features
 
 - **Background Polling**: Continuously polls CMB API every minute for USD exchange rates
-- **Smart Business Hours**: Automatically skips polling outside CMB business hours (08:00-22:00 CST) to save resources
+- **Smart Business Hours**: Automatically skips polling outside CMB business hours (08:30-22:00 CST) to save resources
 - **SQLite Storage**: Stores historical data locally with date-based partitioning
 - **Real-time Monitoring**: Display current exchange rate with live updates
 - **Historical Analysis**: Query rates by time range with multiple output formats
@@ -72,7 +72,7 @@ Start the background polling service that collects USD exchange rates every minu
 - `-v, --verbose` - Enable verbose logging
 
 **Business Hours:**
-By default, the daemon only polls the CMB API during business hours (08:00-22:00 CST) since exchange rates don't update outside these hours. This reduces unnecessary API calls by ~60%. Use `--no-business-hours` to disable this optimization and poll 24/7.
+By default, the daemon only polls the CMB API during business hours (08:30-22:00 CST) since exchange rates don't update outside these hours. This reduces unnecessary API calls by ~60%. Use `--no-business-hours` to disable this optimization and poll 24/7.
 
 **Alert System:**
 The daemon can monitor rates and send alerts when certain conditions are met:
@@ -352,7 +352,7 @@ Exchange Rate Patterns Analysis
 ═══════════════════════════════
 Analyzing last 30 days of data
 
-Hourly Patterns (Business Hours 08:00-22:00 CST)
+Hourly Patterns (Business Hours 08:30-22:00 CST)
 ─────────────────────────────────────────────────
 
 Hour      Avg Rate    Min         Max         Samples   Peak Freq
@@ -716,7 +716,7 @@ usd-buy-rate-monitor/
 
 3. **Business Hours Check**: Optimizes resource usage by respecting CMB operating hours
 
-   - Default hours: 08:00-22:00 CST (China Standard Time, UTC+8)
+   - Default hours: 08:30-22:00 CST (China Standard Time, UTC+8)
    - Skips API calls outside business hours since rates don't update
    - Reduces API calls by ~60% and saves database writes
    - Can be disabled with `--no-business-hours` flag

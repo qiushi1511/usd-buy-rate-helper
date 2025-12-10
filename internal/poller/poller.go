@@ -67,7 +67,7 @@ func NewPoller(apiClient *api.Client, repo *storage.Repository, logger *slog.Log
 		repo:               repo,
 		logger:             logger,
 		skipOffHours:       true,  // Default: enable business hours check
-		businessHoursStart: 8,      // Default: 08:00 CST
+		businessHoursStart: 8,      // Default: 08:30 CST (minute check in isBusinessHours)
 		businessHoursEnd:   22,     // Default: 22:00 CST
 	}
 
@@ -105,6 +105,7 @@ func (p *Poller) Start(ctx context.Context, interval time.Duration) error {
 }
 
 // isBusinessHours checks if the current time is within CMB business hours (CST)
+// CMB forex rates update from 08:30-22:00 Beijing Time
 func (p *Poller) isBusinessHours() bool {
 	if !p.skipOffHours {
 		return true // Always poll if business hours check is disabled
@@ -114,8 +115,22 @@ func (p *Poller) isBusinessHours() bool {
 	cstLocation := time.FixedZone("CST", 8*60*60)
 	now := time.Now().In(cstLocation)
 	hour := now.Hour()
+	minute := now.Minute()
 
-	return hour >= p.businessHoursStart && hour < p.businessHoursEnd
+	// Check if before start time (8:30 AM)
+	if hour < p.businessHoursStart {
+		return false
+	}
+	if hour == p.businessHoursStart && minute < 30 {
+		return false // Before 8:30 AM
+	}
+
+	// Check if after end time (22:00)
+	if hour >= p.businessHoursEnd {
+		return false
+	}
+
+	return true
 }
 
 // poll performs a single polling operation
@@ -125,8 +140,8 @@ func (p *Poller) poll(ctx context.Context) error {
 		cstLocation := time.FixedZone("CST", 8*60*60)
 		now := time.Now().In(cstLocation)
 		p.logger.Debug("skipping poll outside business hours",
-			"current_hour_cst", now.Hour(),
-			"business_hours", fmt.Sprintf("%02d:00-%02d:00", p.businessHoursStart, p.businessHoursEnd))
+			"current_time_cst", fmt.Sprintf("%02d:%02d", now.Hour(), now.Minute()),
+			"business_hours", "08:30-22:00")
 		return nil
 	}
 

@@ -44,7 +44,7 @@ This achieves 99.7% storage reduction while maintaining full prediction capabili
 
 **Polling Layer** (`internal/poller/`):
 - Manages background data collection with configurable intervals
-- Implements **business hours optimization** (08:00-22:00 CST) - skips polling when CMB rates don't update, reducing API calls by ~60%
+- Implements **business hours optimization** (08:30-22:00 CST) - skips polling when CMB rates don't update, reducing API calls by ~60%
 - Integrates with alert system to trigger notifications on rate changes
 - Uses `time.Ticker` for precise timing and handles graceful shutdown
 
